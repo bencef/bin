@@ -1,0 +1,14 @@
+#! /usr/bin/env nix-shell
+(* -*- mode: tuareg -*-
+#! nix-shell -i ocaml -p ocaml
+ *)
+
+#use "util.ml"
+
+let say_hello name =
+  let name = name |> Option.value ~default:"World" in
+  Printf.printf "Hello, %s!\n" name
+
+let () =
+  let name = Util.arg 1 in
+  say_hello name

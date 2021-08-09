@@ -1,0 +1,98 @@
+#! /usr/bin/env nix-shell
+(* -*- mode: tuareg -*-
+#! nix-shell -i ocaml -p ocaml
+ *)
+
+#load "unix.cma"
+
+module Unix = UnixLabels
+
+#use "util.ml"
+
+module Config :
+sig
+  type t
+  val make : moment:int -> string NonEmpty.t -> t
+  val moment : t -> int
+  val action : t -> string array
+end =
+  struct
+    type t = { moment : int
+             ; action : string array
+             }
+    let make ~moment action =
+      let action = action |> NonEmpty.to_array in
+      { moment; action }
+
+    let moment config =
+      config.moment
+
+    let action config =
+      config.action
+  end
+
+module Date :
+sig
+  val str_to_moment : string -> (int, string) result
+end =
+  struct
+    let str_to_moment repr =
+      let env = "/usr/bin/env" in
+      let args = [|"date"; "-d"; repr; "+%s"|] in
+      let in_ch = Unix.open_process_args_in env args in
+      try
+        let seconds = input_line in_ch in
+        let res = Scanf.sscanf seconds "%d" Fun.id in
+        close_in in_ch;
+        Ok res
+      with e ->
+            close_in_noerr in_ch;
+            match e with
+            | Scanf.Scan_failure _ ->
+               let message = Printf.sprintf "Couldn't parse %s" repr in
+               Error message
+            | _ -> raise e
+  end
+
+let parse_args () =
+  let args = Sys.argv |> Array.to_list in
+  args
+  |> Util.index_of_opt "--"
+  |> Option.to_result ~none:"Couldn't find a -- separator."
+  |> Fun.flip Result.bind (fun sep_pos ->
+         let len = Sys.argv |> Array.length in
+         let date = Array.sub Sys.argv 1 (sep_pos-1) in
+         let command = Array.sub Sys.argv (sep_pos+1) (len-sep_pos-1) in
+         let date_str = date |> Array.to_list |> String.concat " " in
+         let moment = date_str |> Date.str_to_moment in
+         let action = command |> Array.to_list |> NonEmpty.make in
+         let action = action |> Option.get in (* TODO: remove *)
+         moment |> Result.map (fun moment ->
+                       Config.make ~moment action))
+
+let usage ~error =
+  let open Printf in
+  let message = sprintf "%s date -- action
+
+\t`date'  \tis a time understood by the unix date(1) program.
+\t`action'\tis a command that can be run by sh(1).
+
+Schedules an action to run at the given time.
+
+Returns 0 if the action was scheduled correctly.
+Returns 1 otherwise." Sys.argv.(0) in
+  eprintf "Error: %s\n" error;
+  eprintf "\nUsage: %s\n" message;
+  exit 1
+
+let main ~config =
+  let moment = Config.moment config in
+  let action = Config.action config
+               |> Array.to_list
+               |> String.concat " " in
+  Printf.printf "Config: {moment: %d; action: %s}\n" moment action
+
+let () =
+  match parse_args () with
+  | Error error -> usage ~error
+  | Ok config -> main ~config
