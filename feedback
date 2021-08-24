@@ -1,0 +1,30 @@
+#! /usr/bin/env nix-shell
+(* -*- mode: tuareg -*-
+#! nix-shell -i ocaml -p ocaml ffmpeg
+ *)
+
+#use "util.ml"
+
+type color =
+  | Red
+  | Yellow
+  | Green
+
+let process_args () =
+  Util.arg 1
+  |> Option.to_result ~none:"Color parameter needed"
+  |> Result.map String.uppercase_ascii
+  |> Fun.flip Result.bind (fun c ->
+         match c with
+         | "RED"    -> Ok Red
+         | "YELLOW" -> Ok Yellow
+         | "GREEN"  -> Ok Green
+         | unkown   -> Error (Printf.sprintf "Unkown color: %s" unkown))
+
+let start_overlay color =
+  ()
+
+let () =
+  match process_args () with
+  | Ok color    -> start_overlay color
+  | Error error -> Printf.eprintf "ERROR: %s" error; exit 1
