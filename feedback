@@ -5,6 +5,8 @@
 
 #use "util.ml"
 
+#use "ffmpeg.ml"
+
 type color =
   | Red
   | Yellow
@@ -22,7 +24,12 @@ let process_args () =
          | unkown   -> Error (Printf.sprintf "Unkown color: %s" unkown))
 
 let start_overlay color =
-  ()
+  let input_cam_path = "/dev/video0" in (* TODO: make this dynamic *)
+  let builder = Ffmpeg.builder () in
+  (* TODO: use [v4l] instead of [file] *)
+  let (_handle, builder) = Ffmpeg.source builder (Ffmpeg.Source.file input_cam_path) in
+  let command = Ffmpeg.to_string_array builder |> Array.to_list |> String.concat " " in
+  print_endline command
 
 let () =
   match process_args () with
