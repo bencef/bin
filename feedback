@@ -13,18 +13,22 @@ type color =
   | Green
 
 let process_args () =
-  Util.arg 1
-  |> Option.to_result ~none:"Color parameter needed"
-  |> Result.map String.uppercase_ascii
-  |> Fun.flip Result.bind (fun c ->
-         match c with
-         | "RED"    -> Ok Red
-         | "YELLOW" -> Ok Yellow
-         | "GREEN"  -> Ok Green
-         | unkown   -> Error (Printf.sprintf "Unkown color: %s" unkown))
+  let color =
+    Util.arg 1
+    |> Option.to_result ~none:"Color parameter needed"
+    |> Result.map String.uppercase_ascii
+    |> Fun.flip Result.bind (fun c ->
+           match c with
+           | "RED"    -> Ok Red
+           | "YELLOW" -> Ok Yellow
+           | "GREEN"  -> Ok Green
+           | unkown   -> Error (Printf.sprintf "Unkown color: %s" unkown)) in
+  let node = Util.arg 2 |> Result.ok in (* TODO: more sophisticated parsing *)
+  color |> Fun.flip Result.bind (fun color ->
+               node |> Result.map (fun node -> (color, node)))
 
-let start_overlay color =
-  let input_cam_path = "/dev/video0" in (* TODO: make this dynamic *)
+let start_overlay color device_node =
+  let input_cam_path = device_node |> Option.value ~default:"/dev/video0" in
   let builder = Ffmpeg.builder () in
   (* TODO: use [v4l] instead of [file] *)
   let (_handle, builder) = Ffmpeg.source builder (Ffmpeg.Source.file input_cam_path) in
@@ -33,5 +37,5 @@ let start_overlay color =
 
 let () =
   match process_args () with
-  | Ok color    -> start_overlay color
-  | Error error -> Printf.eprintf "ERROR: %s" error; exit 1
+  | Ok (color, device) -> start_overlay color device
+  | Error error        -> Printf.eprintf "ERROR: %s" error; exit 1
