@@ -7,28 +7,31 @@
 
 #use "ffmpeg.ml"
 
+let usage_msg = "USAGE. TODO"
+
 type color =
   | Red
   | Yellow
   | Green
 
-let process_args () =
-  let color =
-    Util.arg 1
-    |> Option.to_result ~none:"Color parameter needed"
-    |> Result.map String.uppercase_ascii
-    |> Fun.flip Result.bind (fun c ->
-           match c with
-           | "RED"    -> Ok Red
-           | "YELLOW" -> Ok Yellow
-           | "GREEN"  -> Ok Green
-           | unkown   -> Error (Printf.sprintf "Unkown color: %s" unkown)) in
-  let node = Util.arg 2 |> Result.ok in (* TODO: more sophisticated parsing *)
-  color |> Fun.flip Result.bind (fun color ->
-               node |> Result.map (fun node -> (color, node)))
+let color_option = ref Green
+
+let device_option = ref "/dev/video0"
+
+let set_color color =
+  color_option := match String.uppercase_ascii color with
+                  | "RED"    -> Red
+                  | "YELLOW" -> Yellow
+                  | "GREEN"  -> Green
+                  | _        -> Arg.Bad (Printf.sprintf "Unknown color: %s" color)
+                                |> raise
+
+let spec =
+  [("-c", Arg.String set_color, "The color to display.  One of red | yellow | greeen.");
+   ("-d", Arg.Set_string device_option, "The v4l2 loopback device")]
 
 let start_overlay color device_node =
-  let input_cam_path = device_node |> Option.value ~default:"/dev/video0" in
+  let input_cam_path = device_node in
   let builder = Ffmpeg.builder () in
   (* TODO: use [v4l] instead of [file] *)
   let (_handle, builder) = Ffmpeg.source builder (Ffmpeg.Source.file input_cam_path) in
@@ -36,6 +39,5 @@ let start_overlay color device_node =
   print_endline command
 
 let () =
-  match process_args () with
-  | Ok (color, device) -> start_overlay color device
-  | Error error        -> Printf.eprintf "ERROR: %s" error; exit 1
+  Arg.parse spec ignore usage_msg;
+  start_overlay !color_option !device_option
