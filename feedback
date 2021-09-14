@@ -27,8 +27,8 @@ let set_color color =
                                 |> raise
 
 let spec =
-  [("-c", Arg.String set_color, "The color to display.  One of red | yellow | greeen.");
-   ("-d", Arg.Set_string device_option, "The v4l2 loopback device")]
+  [("-c", Arg.String set_color, "red|yellow|green\tThe color to display.  Case insensitive.");
+   ("-d", Arg.Set_string device_option, "device_node\tThe v4l2 loopback device")]
 
 let start_overlay color device_node =
   let input_cam_path = device_node in
@@ -39,5 +39,5 @@ let start_overlay color device_node =
   print_endline command
 
 let () =
-  Arg.parse spec ignore usage_msg;
+  Arg.parse (Arg.align spec) ignore usage_msg;
   start_overlay !color_option !device_option
