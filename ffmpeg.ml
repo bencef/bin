@@ -2,6 +2,9 @@ module Ffmpeg: sig
   type t
   (** Abstract type for a builder of an ffmpeg command. *)
 
+  type pix_fmt =
+    | Yuv420p
+
   module Source: sig
     type t
     (** abstract type representing a source *)
@@ -12,6 +15,8 @@ module Ffmpeg: sig
 
     val file: string -> t
     (** [file path] creates a new source object representing an input file *)
+
+    val v4l2: ?frame_rate:int -> ?pix_fmt:pix_fmt -> string -> t
   end
 
   val builder: unit -> t
@@ -29,13 +34,23 @@ end =
              ; pipeline: string array
              ; outputs: string array }
 
+    type pix_fmt =
+      | Yuv420p
+
+    let string_of_pix_fmt = function
+      | Yuv420p -> "yuv420p"
+
     module Source =
       struct
         type t =
           | FilePath of string
+          | V4l2 of string * int option * pix_fmt option
+
         type handle = int
 
         let file path = FilePath path
+
+        let v4l2 ?frame_rate ?pix_fmt path = V4l2 (path, frame_rate, pix_fmt)
       end
 
     let builder () =
@@ -56,6 +71,19 @@ end =
         let open Source in
         match input with
         | FilePath path -> [| "-i"; path |]
+        | V4l2 (path, frame_rate, pix_fmt) ->
+           Array.concat [
+               [| "-f"; "v4l2"|];
+               frame_rate
+               |> Option.map (fun rate -> [| "-framerate"; string_of_int rate |])
+               |> Option.value ~default:[||];
+               pix_fmt
+               |> Option.map (fun pix_fmt -> [| "-input_format"; "rawvideo";
+                                                "-pix_fmt";
+                                                string_of_pix_fmt pix_fmt |])
+               |> Option.value ~default:[||];
+               [|"-i"; path |]
+             ]
       in
       let inputs = input :: builder.inputs in
       (handle, { builder with inputs })
