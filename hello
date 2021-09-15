@@ -5,10 +5,20 @@
 
 #use "util.ml"
 
+let usage =
+  "hello [name]
+
+A program that greets the user.  If no name is provided then it \
+outputs \"Hello, World!\"\n"
+
+let name_option = ref "World"
+
+let anon_param name = name_option := name
+
 let say_hello name =
-  let name = name |> Option.value ~default:"World" in
   Printf.printf "Hello, %s!\n" name
 
 let () =
-  let name = Util.arg 1 in
-  say_hello name
+  let spec = [] in
+  Arg.parse (Arg.align spec) anon_param usage;
+  say_hello !name_option
