@@ -11,9 +11,10 @@ let usage =
 A program that greets the user.  If no name is provided then it \
 outputs \"Hello, World!\"\n"
 
-let name_option = ref "World"
+let name_option = ref []
 
-let anon_param name = name_option := name
+let anon_param name =
+  name_option := name::!name_option
 
 let say_hello name =
   Printf.printf "Hello, %s!\n" name
@@ -21,4 +22,7 @@ let say_hello name =
 let () =
   let spec = [] in
   Arg.parse (Arg.align spec) anon_param usage;
-  say_hello !name_option
+  let name = match !name_option with
+    | [] -> "World"
+    | parts -> parts |> List.rev |> String.concat " " in
+  say_hello name
