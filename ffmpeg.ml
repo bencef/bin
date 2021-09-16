@@ -67,6 +67,11 @@ end =
 
     let source builder input =
       let handle = builder.inputs |> List.length in
+      let add_opt value transform template_fun =
+        value
+        |> Option.map transform
+        |> Option.map template_fun
+        |> Option.value ~default:[||] in
       let input =
         let open Source in
         match input with
@@ -74,14 +79,9 @@ end =
         | V4l2 (path, frame_rate, pix_fmt) ->
            Array.concat [
                [| "-f"; "v4l2"|];
-               frame_rate
-               |> Option.map (fun rate -> [| "-framerate"; string_of_int rate |])
-               |> Option.value ~default:[||];
-               pix_fmt
-               |> Option.map (fun pix_fmt -> [| "-input_format"; "rawvideo";
-                                                "-pix_fmt";
-                                                string_of_pix_fmt pix_fmt |])
-               |> Option.value ~default:[||];
+               add_opt frame_rate string_of_int (fun rate -> [| "-framerate"; rate |]);
+               add_opt pix_fmt string_of_pix_fmt (fun pix_fmt ->
+                   [| "-input_format"; "rawvideo"; "-pix_fmt"; pix_fmt |]);
                [|"-i"; path |]
              ]
       in
