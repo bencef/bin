@@ -17,6 +17,8 @@ module Ffmpeg: sig
     (** [file path] creates a new source object representing an input file *)
 
     val v4l2: ?frame_rate:int -> ?pix_fmt:pix_fmt -> string -> t
+    (** [v4l2 ~frame_rate ~pix_fmt device] creates a new source representing a
+        v4l2 device.  Example value for the device is [/dev/video0] *)
   end
 
   val builder: unit -> t
