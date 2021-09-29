@@ -5,6 +5,8 @@ module Ffmpeg: sig
   type pix_fmt =
     | Yuv420p
 
+  type color = {r: int; g: int; b: int}
+
   module Source: sig
     type t
     (** abstract type representing a source *)
@@ -17,8 +19,14 @@ module Ffmpeg: sig
     (** [file path] creates a new source object representing an input file *)
 
     val v4l2: ?frame_rate:int -> ?pix_fmt:pix_fmt -> string -> t
-    (** [v4l2 ~frame_rate ~pix_fmt device] creates a new source representing a
+    (** [v4l2 ?frame_rate ?pix_fmt device] creates a new source representing a
         v4l2 device.  Example value for the device is [/dev/video0] *)
+  end
+
+  module Filter: sig
+    val color: t -> color -> Source.handle * t
+    (** [color builder color_value] creates a source representing a picture of
+        that color. *)
   end
 
   val builder: unit -> t
@@ -27,6 +35,7 @@ module Ffmpeg: sig
   val to_string_array: t -> string array
   (** [to_string_array builder] returns an array of parameters that can be
       passed to the ffmpeg command. *)
+
   val source: t -> Source.t -> Source.handle * t
   (** [source builder input] adds a source to the builder and returns
       an opaque handle to the source and the new builder. *)
@@ -39,6 +48,8 @@ end =
     type pix_fmt =
       | Yuv420p
 
+    type color = {r: int; g: int; b: int}
+
     let string_of_pix_fmt = function
       | Yuv420p -> "yuv420p"
 
@@ -48,11 +59,18 @@ end =
           | FilePath of string
           | V4l2 of string * int option * pix_fmt option
 
-        type handle = int
+        type handle = string
 
         let file path = FilePath path
 
         let v4l2 ?frame_rate ?pix_fmt path = V4l2 (path, frame_rate, pix_fmt)
+      end
+
+    module Filter =
+      struct
+        let color builder color =
+          (* TODO: implement me *)
+          "f1", builder
       end
 
     let builder () =
@@ -68,7 +86,7 @@ end =
       |> Array.concat
 
     let source builder input =
-      let handle = builder.inputs |> List.length in
+      let handle = builder.inputs |> List.length |> string_of_int in
       let add_opt value transform template_fun =
         value
         |> Option.map transform
