@@ -30,11 +30,17 @@ let spec =
   [("-c", Arg.String set_color, "red|yellow|green\tThe color to display.  Case insensitive.");
    ("-d", Arg.Set_string device_option, "device_node\tThe v4l2 loopback device")]
 
+let color_to_ffmpeg = function
+  | Red -> Ffmpeg.({r = 255; g = 0; b = 0})
+  | Yellow -> Ffmpeg.({r = 200; g = 200; b = 0})
+  | Green -> Ffmpeg.({r = 0; g = 255; b = 0})
+
 let start_overlay color device_node =
   let input_cam_path = device_node in
   let builder = Ffmpeg.builder () in
   (* TODO: use [v4l] instead of [file] *)
-  let (_handle, builder) = Ffmpeg.source builder (Ffmpeg.Source.v4l2 input_cam_path) in
+  let (_webcam_handle, builder) = Ffmpeg.source builder (Ffmpeg.Source.v4l2 input_cam_path) in
+  let (_color_handle, builder) = Ffmpeg.Filter.color builder (color_to_ffmpeg color) in
   let command = Ffmpeg.to_string_array builder |> Array.to_list |> String.concat " " in
   print_endline command
 
