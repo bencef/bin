@@ -1,7 +1,7 @@
 #! /usr/bin/env nix-shell
 (* -*- mode: tuareg -*-
 #! nix-shell -i ocaml -p ocaml ffmpeg
- *)
+*)
 
 #use "util.ml"
 
@@ -20,11 +20,11 @@ let device_option = ref "/dev/video0"
 
 let set_color color =
   color_option := match String.uppercase_ascii color with
-                  | "RED"    -> Red
-                  | "YELLOW" -> Yellow
-                  | "GREEN"  -> Green
-                  | _        -> Arg.Bad (Printf.sprintf "Unknown color: %s" color)
-                                |> raise
+    | "RED"    -> Red
+    | "YELLOW" -> Yellow
+    | "GREEN"  -> Green
+    | _        -> Arg.Bad (Printf.sprintf "Unknown color: %s" color)
+                  |> raise
 
 let spec =
   [("-c", Arg.String set_color, "red|yellow|green\tThe color to display.  Case insensitive.");

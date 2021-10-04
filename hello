@@ -9,7 +9,7 @@ let usage =
   "hello [name]
 
 A program that greets the user.  If no name is provided then it \
-outputs \"Hello, World!\"\n"
+   outputs \"Hello, World!\"\n"
 
 let name_option = ref []
 
