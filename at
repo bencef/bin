@@ -51,6 +51,7 @@ end =
             | Scanf.Scan_failure _ ->
                let message = Printf.sprintf "Couldn't parse %s" repr in
                Error message
+            | End_of_file -> Error "No output from date(1)"
             | _ -> raise e
   end
 
@@ -90,7 +91,8 @@ let main ~config =
   let action = Config.action config
                |> Array.to_list
                |> String.concat " " in
-  Printf.printf "Config: {moment: %d; action: %s}\n" moment action
+  Printf.printf "Config: {moment: %d; action: %s}\n" moment action;
+  exit 1
 
 let () =
   match parse_args () with
