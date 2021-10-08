@@ -1,6 +1,6 @@
 module Ffmpeg: sig
-  type t
-  (** Abstract type for a builder of an ffmpeg command. *)
+
+  type 'a m
 
   type pix_fmt =
     | Yuv420p
@@ -12,54 +12,61 @@ module Ffmpeg: sig
     (** abstract type representing a source for use as parameter
         to builder functions *)
 
-    val file: t -> string -> handle * t
-    (** [file builder path] creates a new source object representing an input file *)
+    val file: string -> handle m
+    (** [file path] creates a new source object representing an input file *)
 
-    val v4l2: ?frame_rate:int -> ?pix_fmt:pix_fmt -> t -> string -> handle * t
-    (** [v4l2 ?frame_rate ?pix_fmt builder device] creates a new source representing a
+    val v4l2: ?frame_rate:int -> ?pix_fmt:pix_fmt -> string -> handle m
+    (** [v4l2 ?frame_rate ?pix_fmt device] creates a new source representing a
         v4l2 device.  Example value for the device is [/dev/video0] *)
   end
 
   module Filter: sig
-    val color: t -> color -> Source.handle * t
+    val color: color -> Source.handle m
     (** [color builder color_value] creates a source representing a picture of
         that color. *)
   end
 
-  val builder: unit -> t
-  (** [builder ()] returns a new builder *)
+  val pure: 'a -> 'a m
 
-  val to_string_array: t -> string array
+  val bind: 'a m -> ('a -> 'b m) -> 'b m
+
+  val to_string_array: unit m -> string array
   (** [to_string_array builder] returns an array of parameters that can be
       passed to the ffmpeg command. *)
+
+  module Syntax: sig
+    val ( let* ): 'a m -> ('a -> 'b m) -> 'b m
+  end
 end =
 struct
   type t = { inputs: string array list
            ; pipeline: string array
            ; outputs: string array }
 
+  type 'a m = t -> 'a * t
+
   type pix_fmt =
     | Yuv420p
 
   type color = {r: int; g: int; b: int}
 
-  let string_of_pix_fmt = function
-    | Yuv420p -> "yuv420p"
-
-  let add_source builder params =
-    let handle = builder.inputs |> List.length |> string_of_int in
-    let inputs = params :: builder.inputs in
-    (handle, { builder with inputs })
-
   module Source =
   struct
     type handle = string
 
-    let file builder path =
-      let params = [| "-i"; path |] in
-      add_source builder params
+    let add_source builder params =
+      let handle = builder.inputs |> List.length |> string_of_int in
+      let inputs = params :: builder.inputs in
+      (handle, { builder with inputs })
 
-    let v4l2 ?frame_rate ?pix_fmt builder path =
+    let string_of_pix_fmt = function
+      | Yuv420p -> "yuv420p"
+
+    let file path =
+      let params = [| "-i"; path |] in
+      fun builder -> add_source builder params
+
+    let v4l2 ?frame_rate ?pix_fmt path =
       let add_opt value transform template_fun =
         value
         |> Option.map transform
@@ -73,25 +80,39 @@ struct
               [| "-input_format"; "rawvideo"; "-pix_fmt"; pix_fmt |]);
           [|"-i"; path |]
         ] in
-      add_source builder params
+      fun builder -> add_source builder params
   end
 
   module Filter =
   struct
-    let color builder color =
+    let color color =
       (* TODO: implement me *)
-      "f1", builder
+      fun builder -> "f1", builder
   end
 
-  let builder () =
-    let inputs = [] in
-    let pipeline = [||] in
-    let outputs = [||] in
-    { inputs; pipeline; outputs }
+  let to_string_array steps =
+    let empty_builder =
+      let inputs = [] in
+      let pipeline = [||] in
+      let outputs = [||] in
+      { inputs; pipeline; outputs } in
+    let action = fun builder ->
+      [ builder.inputs |> List.rev |> Array.concat
+      ; builder.pipeline
+      ; builder.outputs ]
+      |> Array.concat in
+    let (_, builder) = steps empty_builder in
+    action builder
 
-  let to_string_array builder =
-    [ builder.inputs |> List.rev |> Array.concat
-    ; builder.pipeline
-    ; builder.outputs ]
-    |> Array.concat
+  let pure v = fun builder -> v, builder
+
+  let bind ma mf = fun builder ->
+    let (a, builder') = ma builder in
+    mf a builder'
+
+  module Syntax =
+  struct
+    let ( let* ) = bind
+  end
+
 end
