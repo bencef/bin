@@ -122,15 +122,15 @@ struct
   end
 
   module Sink =
-    struct
-      let v4l2 ?(pix_fmt=Yuv420p) input device = fun builder ->
-        let pix_fmt = Source.string_of_pix_fmt pix_fmt in
-        let args = [| "-map"; Printf.sprintf "[%s]" input;
-                      "-f"; "v4l2"; "-pix_fmt"; pix_fmt;
-                      device |] in
-        let outputs = args::builder.outputs in
-        (), { builder with outputs }
-    end
+  struct
+    let v4l2 ?(pix_fmt=Yuv420p) input device = fun builder ->
+      let pix_fmt = Source.string_of_pix_fmt pix_fmt in
+      let args = [| "-map"; Printf.sprintf "[%s]" input;
+                    "-f"; "v4l2"; "-pix_fmt"; pix_fmt;
+                    device |] in
+      let outputs = args::builder.outputs in
+      (), { builder with outputs }
+  end
 
   let to_string_array steps =
     let empty_builder =
