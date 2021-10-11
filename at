@@ -88,11 +88,17 @@ Returns 1 otherwise." Sys.argv.(0) in
 
 let main ~config =
   let moment = Config.moment config in
-  let action = Config.action config
-               |> Array.to_list
-               |> String.concat " " in
-  Printf.printf "Config: {moment: %d; action: %s}\n" moment action;
-  exit 1
+  let now = Unix.gettimeofday () |> Int.of_float in
+  let duration = moment - now in
+  if duration < 0
+  then
+    let _ = Printf.eprintf "moment %d in the past" moment in
+    exit 1
+  else
+    let args = Config.action config in
+    let prog = Array.get args 0 in
+    let () = Unix.sleep duration in
+    Unix.execvp ~prog ~args
 
 let () =
   match parse_args () with
