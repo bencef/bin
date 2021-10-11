@@ -30,6 +30,8 @@ module Ffmpeg: sig
 
   val bind: 'a m -> ('a -> 'b m) -> 'b m
 
+  val ignore: 'a m -> unit m
+
   val to_string_array: unit m -> string array
   (** [to_string_array builder] returns an array of parameters that can be
       passed to the ffmpeg command. *)
@@ -109,6 +111,12 @@ struct
   let bind ma mf = fun builder ->
     let (a, builder') = ma builder in
     mf a builder'
+
+  let map f ma = fun builder ->
+    let (a, builder') = ma builder in
+    (f a, builder')
+
+  let ignore ma = map ignore ma
 
   module Syntax =
   struct

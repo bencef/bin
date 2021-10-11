@@ -40,8 +40,7 @@ let start_overlay color device_node =
   let input_cam_path = device_node in
   let pipeline =
     let* _webcam_handle = Ffmpeg.Source.v4l2 input_cam_path in
-    let* _color_handle = Ffmpeg.Filter.color (color_to_ffmpeg color) in
-    Ffmpeg.pure ()
+    Ffmpeg.Filter.color (color_to_ffmpeg color) |> Ffmpeg.ignore
   in
   let command = Ffmpeg.to_string_array pipeline |> Array.to_list |> String.concat " " in
   print_endline command
