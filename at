@@ -66,10 +66,13 @@ let parse_args () =
       let command = Array.sub Sys.argv (sep_pos+1) (len-sep_pos-1) in
       let date_str = date |> Array.to_list |> String.concat " " in
       let moment = date_str |> Date.str_to_moment in
-      let action = command |> Array.to_list |> NonEmpty.make in
-      let action = action |> Option.get in (* TODO: remove *)
-      moment |> Result.map (fun moment ->
-          Config.make ~moment action))
+      command
+      |> Array.to_list
+      |> NonEmpty.make
+      |> Option.to_result ~none:"Empty command."
+      |> Fun.flip Result.bind (fun action ->
+          moment |> Result.map (fun moment ->
+              Config.make ~moment action)))
 
 let usage ~error =
   let open Printf in
@@ -98,7 +101,7 @@ let main ~config =
     let args = Config.action config in
     let prog = Array.get args 0 in
     let () = Unix.sleep duration in
-    Unix.execvp ~prog ~args
+    Unix.execvp ~prog ~args     (* TODO: schedule to a daemon *)
 
 let () =
   match parse_args () with
