@@ -36,11 +36,14 @@ let color_to_ffmpeg = function
   | Green -> Ffmpeg.({r = 0; g = 255; b = 0})
 
 let start_overlay color device_node =
+  let open Ffmpeg.Syntax in
   let input_cam_path = device_node in
-  let builder = Ffmpeg.builder () in
-  let (_webcam_handle, builder) = Ffmpeg.Source.v4l2 builder input_cam_path in
-  let (_color_handle, builder) = Ffmpeg.Filter.color builder (color_to_ffmpeg color) in
-  let command = Ffmpeg.to_string_array builder |> Array.to_list |> String.concat " " in
+  let pipeline =
+    let* _webcam_handle = Ffmpeg.Source.v4l2 input_cam_path in
+    let* _color_handle = Ffmpeg.Filter.color (color_to_ffmpeg color) in
+    Ffmpeg.pure ()
+  in
+  let command = Ffmpeg.to_string_array pipeline |> Array.to_list |> String.concat " " in
   print_endline command
 
 let () =
