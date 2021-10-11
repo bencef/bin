@@ -9,20 +9,15 @@
 
 let usage_msg = "USAGE. TODO"
 
-type color =
-  | Red
-  | Yellow
-  | Green
-
-let color_option = ref Green
+let color_option = ref (Ffmpeg.NamedColor `Green)
 
 let device_option = ref "/dev/video0"
 
 let set_color color =
   color_option := match String.uppercase_ascii color with
-    | "RED"    -> Red
-    | "YELLOW" -> Yellow
-    | "GREEN"  -> Green
+    | "RED"    -> Ffmpeg.NamedColor `Red
+    | "YELLOW" -> Ffmpeg.NamedColor `Yellow
+    | "GREEN"  -> Ffmpeg.NamedColor `Green
     | _        -> Arg.Bad (Printf.sprintf "Unknown color: %s" color)
                   |> raise
 
@@ -30,17 +25,12 @@ let spec =
   [("-c", Arg.String set_color, "red|yellow|green\tThe color to display.  Case insensitive.");
    ("-d", Arg.Set_string device_option, "device_node\tThe v4l2 loopback device")]
 
-let color_to_ffmpeg = function
-  | Red -> Ffmpeg.({r = 255; g = 0; b = 0})
-  | Yellow -> Ffmpeg.({r = 200; g = 200; b = 0})
-  | Green -> Ffmpeg.({r = 0; g = 255; b = 0})
-
 let start_overlay color device_node =
   let open Ffmpeg.Syntax in
   let input_cam_path = device_node in
   let pipeline =
     let* _webcam_handle = Ffmpeg.Source.v4l2 input_cam_path in
-    Ffmpeg.Filter.color (color_to_ffmpeg color) |> Ffmpeg.ignore
+    Ffmpeg.Source.color color |> Ffmpeg.ignore
   in
   let command = Ffmpeg.to_string_array pipeline |> Array.to_list |> String.concat " " in
   print_endline command

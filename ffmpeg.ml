@@ -5,7 +5,9 @@ module Ffmpeg: sig
   type pix_fmt =
     | Yuv420p
 
-  type color = {r: int; g: int; b: int}
+  type color =
+    | Rgb of {r: int; g: int; b: int}
+    | NamedColor of [`Red | `Yellow | `Green]
 
   module Source: sig
     type handle
@@ -18,12 +20,13 @@ module Ffmpeg: sig
     val v4l2: ?frame_rate:int -> ?pix_fmt:pix_fmt -> string -> handle m
     (** [v4l2 ?frame_rate ?pix_fmt device] creates a new source representing a
         v4l2 device.  Example value for the device is [/dev/video0] *)
+
+    val color: color -> handle m
+    (** [color color_value] creates a source representing a picture of
+        that color. *)
   end
 
   module Filter: sig
-    val color: color -> Source.handle m
-    (** [color builder color_value] creates a source representing a picture of
-        that color. *)
   end
 
   val pure: 'a -> 'a m
@@ -50,7 +53,9 @@ struct
   type pix_fmt =
     | Yuv420p
 
-  type color = {r: int; g: int; b: int}
+  type color =
+    | Rgb of {r: int; g: int; b: int}
+    | NamedColor of [`Red | `Yellow | `Green]
 
   module Source =
   struct
@@ -83,13 +88,23 @@ struct
           [|"-i"; path |]
         ] in
       fun builder -> add_source builder params
+
+    let color color =
+      let color_value = match color with
+        | Rgb {r; g; b} -> Printf.sprintf "color=c=#%02X%02X%02X" r g b
+        | NamedColor `Red -> "color=c=red"
+        | NamedColor `Yellow -> "color=c=yellow"
+        | NamedColor `Green -> "color=c=green" in
+      let params =
+        Array.concat [
+          [| "-f"; "lavfi"; "-i" |];
+          [| color_value |]
+        ] in
+      fun builder -> add_source builder params
   end
 
   module Filter =
   struct
-    let color color =
-      (* TODO: implement me *)
-      fun builder -> "f1", builder
   end
 
   let to_string_array steps =
