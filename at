@@ -56,23 +56,24 @@ struct
 end
 
 let parse_args () =
+  let ( let* ) = Result.bind in
   let args = Sys.argv |> Array.to_list in
-  args
-  |> Util.index_of_opt "--"
-  |> Option.to_result ~none:"Couldn't find a -- separator."
-  |> Fun.flip Result.bind (fun sep_pos ->
-      let len = Sys.argv |> Array.length in
-      let date = Array.sub Sys.argv 1 (sep_pos-1) in
-      let command = Array.sub Sys.argv (sep_pos+1) (len-sep_pos-1) in
-      let date_str = date |> Array.to_list |> String.concat " " in
-      let moment = date_str |> Date.str_to_moment in
-      command
-      |> Array.to_list
-      |> NonEmpty.make
-      |> Option.to_result ~none:"Empty command."
-      |> Fun.flip Result.bind (fun action ->
-          moment |> Result.map (fun moment ->
-              Config.make ~moment action)))
+  let* sep_pos =
+    args
+    |> Util.index_of_opt "--"
+    |> Option.to_result ~none:"Couldn't find a -- separator." in
+  let len = Sys.argv |> Array.length in
+  let date = Array.sub Sys.argv 1 (sep_pos-1) in
+  let command = Array.sub Sys.argv (sep_pos+1) (len-sep_pos-1) in
+  let date_str = date |> Array.to_list |> String.concat " " in
+  let* moment = date_str |> Date.str_to_moment in
+  let* action =
+    command
+    |> Array.to_list
+    |> NonEmpty.make
+    |> Option.to_result ~none:"Empty command." in
+  Ok (Config.make ~moment action)
+
 
 let usage ~error =
   let open Printf in
