@@ -7,13 +7,19 @@
 
 #use "ffmpeg.ml"
 
-let usage_msg = "USAGE. TODO"
+#load "unix.cma"
+
+module Unix = UnixLabels
+
+let usage_msg = "feedback [options] - create a webcam device with a color overlay."
 
 let color_option = ref (Ffmpeg.NamedColor `Green)
 
 let input_device = ref "/dev/video1"
 
 let loopback_device = ref "/dev/video0"
+
+let anon_param param = Arg.Bad (Printf.sprintf "Unknown param: %s" param) |> raise
 
 let set_color color =
   color_option := match String.uppercase_ascii color with
@@ -28,15 +34,17 @@ let spec =
    ("-o", Arg.Set_string loopback_device, "device_node\tThe v4l2 loopback device.");
    ("-i", Arg.Set_string input_device, "device_node\tThe v4l2 webcam device.")]
 
-let start_overlay color _loopback_device input_device =
+let start_overlay color loopback_device input_device =
   let open Ffmpeg.Syntax in
   let pipeline =
-    let* _webcam_handle = Ffmpeg.Source.v4l2 input_device in
-    Ffmpeg.Source.color color |> Ffmpeg.ignore
+    let* webcam_handle = Ffmpeg.Source.v4l2 input_device in
+    let* color_handle = Ffmpeg.Source.color color in
+    let* overlay = Ffmpeg.Filter.overlay webcam_handle color_handle in
+    Ffmpeg.Sink.v4l2 overlay loopback_device
   in
-  let command = Ffmpeg.to_string_array pipeline |> Array.to_list |> String.concat " " in
-  print_endline command
+  let args = Ffmpeg.to_string_array pipeline in
+  Unix.execvp ~prog:"ffmpeg" ~args
 
 let () =
-  Arg.parse (Arg.align spec) ignore usage_msg;
+  Arg.parse (Arg.align spec) anon_param usage_msg;
   start_overlay !color_option !loopback_device !input_device

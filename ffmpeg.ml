@@ -27,6 +27,11 @@ module Ffmpeg: sig
   end
 
   module Filter: sig
+    val overlay: Source.handle -> Source.handle -> Source.handle m
+  end
+
+  module Sink: sig
+    val v4l2: ?pix_fmt:pix_fmt -> Source.handle -> string -> unit m
   end
 
   val pure: 'a -> 'a m
@@ -45,8 +50,8 @@ module Ffmpeg: sig
 end =
 struct
   type t = { inputs: string array list
-           ; pipeline: string array
-           ; outputs: string array }
+           ; pipeline: string list
+           ; outputs: string array list }
 
   type 'a m = t -> 'a * t
 
@@ -105,18 +110,40 @@ struct
 
   module Filter =
   struct
+    let overlay bottom top = fun builder ->
+      let handle = builder.pipeline |> List.length |> Printf.sprintf "overlay%d" in
+      let pipeline =
+        let filter =
+          Printf.sprintf
+            "[%s][%s]overlay[%s]"
+            bottom top handle in
+        filter::builder.pipeline in
+      handle, { builder with pipeline }
   end
+
+  module Sink =
+    struct
+      let v4l2 ?(pix_fmt=Yuv420p) input device = fun builder ->
+        let pix_fmt = Source.string_of_pix_fmt pix_fmt in
+        let args = [| "-map"; Printf.sprintf "[%s]" input;
+                      "-f"; "v4l2"; "-pix_fmt"; pix_fmt;
+                      device |] in
+        let outputs = args::builder.outputs in
+        (), { builder with outputs }
+    end
 
   let to_string_array steps =
     let empty_builder =
       let inputs = [] in
-      let pipeline = [||] in
-      let outputs = [||] in
+      let pipeline = [] in
+      let outputs = [] in
       { inputs; pipeline; outputs } in
     let action = fun builder ->
-      [ builder.inputs |> List.rev |> Array.concat
-      ; builder.pipeline
-      ; builder.outputs ]
+      [ [| "ffmpeg" |]
+      ; builder.inputs |> List.rev |> Array.concat
+      ; [| "-filter_complex" |]
+      ; builder.pipeline |> List.rev |> String.concat ";" |> Array.make 1
+      ; builder.outputs |> List.rev |> Array.concat ]
       |> Array.concat in
     let (_, builder) = steps empty_builder in
     action builder
