@@ -28,6 +28,7 @@ module Ffmpeg: sig
 
   module Filter: sig
     val overlay: Source.handle -> Source.handle -> Source.handle m
+    val scale: Source.handle -> float -> Source.handle m
   end
 
   module Sink: sig
@@ -110,15 +111,23 @@ struct
 
   module Filter =
   struct
-    let overlay bottom top = fun builder ->
-      let handle = builder.pipeline |> List.length |> Printf.sprintf "overlay%d" in
+    let add_filter name format = fun builder ->
+      let handle = builder.pipeline |> List.length |> Printf.sprintf "%s%d" name  in
       let pipeline =
         let filter =
           Printf.sprintf
-            "[%s][%s]overlay[%s]"
-            bottom top handle in
+            "%s[%s]"
+            format handle in
         filter::builder.pipeline in
       handle, { builder with pipeline }
+
+    let overlay bottom top =
+      let command = Printf.sprintf "[%s][%s]overlay" bottom top in
+      add_filter "overlay" command
+
+    let scale source factor =
+      let command = Printf.sprintf "[%s]scale=width=iw*%f:height=-1" source factor in
+      add_filter "scale" command
   end
 
   module Sink =
