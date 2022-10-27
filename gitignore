@@ -1,0 +1,39 @@
+#! /usr/bin/env nix-shell
+(* -*- mode: tuareg -*-
+#! nix-shell -i ocaml -p ocaml wget
+*)
+
+#load "unix.cma"
+
+module Unix = UnixLabels
+
+let usage_msg = "gitignore keyword... - print a gitignore file to standard output."
+
+let keywords = ref []
+
+let anon_param param = keywords := param :: !keywords
+
+let spec = [] (* no named params *)
+
+let get_keywords () =
+  match !keywords with
+  | [] -> Result.error "No keywords are given.  At least one is needed"
+  | keywords -> Result.ok keywords
+
+let create_url (keywords: string list) =
+  let url_template = "https://www.toptal.com/developers/gitignore/api/" in
+  let formatted_keywords = keywords |> String.concat "," in
+  Printf.sprintf "%s%s" url_template formatted_keywords
+
+let main () =
+  let ( let* ) = Result.bind in
+  let* keywords = get_keywords () in
+  let url = create_url keywords in
+  let args = [| "wget"; "--quiet"; "-O"; "-"; url |] in
+  Unix.execvp ~prog:"wget" ~args
+
+let () =
+  Arg.parse (Arg.align spec) anon_param usage_msg;
+  match main () with
+  | Error(msg) -> Printf.printf "Error: %s\n" msg; print_endline usage_msg
+  | Ok(_) -> ()
